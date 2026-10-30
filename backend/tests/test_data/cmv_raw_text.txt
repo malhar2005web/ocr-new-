@@ -1,0 +1,125 @@
+=== SECTION: HEADER ===
+ if oa
+ j +
+ CMV Infraproiects Pvt Ltd
+ Regd, Office : |» 105, YASH PARADISE CHS, SECTOR NO. BA, AIROU, NAVI MUMBAI, Thane-400708
+ Email ¢ adminonvconcrete.com
+ Tel.- 7208787167
+ Name Of State t Maharashtra Code of State 1 27
+ GSTN NO : }7AAPCCI4IANIZO PAN No.: AAFCCI414N CIN : U74120MH2013PTC239596 c
+ === SECTION: BUYER ===
+ To,
+ JINDAL TODAY INFRA LLP
+ Ground Poor, 48, TTC Industrial Area, Thane Belapur Road, Airoli,
+ Name Of State : Maharashtra , State Code : 27
+ GSTIN No :-27AAWFI4746)12L, PAN No =~
+ Oe
+ _ Site Address :
+ — TINDAL TODAY INFRA LLP
+ Fd CAPITAL EOGE- Ground Floor, 48, TTC Industrial Area, Thane
+ y Belapur Road, Airoli, Navi Mumbai- 400708.
+ === SECTION: INVOICE_META ===
+ Invoice No. Date i ne
+ RM/000002/ 26-27 03/06/2026
+ ii, Period
+ 15/05/2026 To 31/05/2026
+ Terms of Payment : PO Date
+ 04/25/2026
+ PO No.
+ CEPO-00012-26-27
+ === SECTION: GOODS_TABLE ===
+ > —— -
+ | Se. No. Description of Goods t HSN / SAC Code Quantity Unit Rate | Amount aad
+ . 1 M20 38245010 99,00 CU.MT 5497.00  544203.00 |
+ ao | | | |
+ |
+ Total 99.00 544,203.00
+ === SECTION: E_INVOICE ===
+ E-INVOICE DETAILS a
+ ACK No :AckNo”: 122632936994253,"AckDt":"2026-06-03
+ 18:53:00" x
+ IRN No:
+ Imn":"6735242'46b4220290e4 1 26d62a2d0fSdd467bbe0eS46c9d :
+ 1819a91a6ad33c51
+ === SECTION: TAXES ===
+ DE uo TRS Te CGST 9.00% 48978.27 |
+ Foe Ce ey
+ Bea gee pest | SGST 9.00% 48978.27
+ aS eae yee | Rounding 46 0.46
+ \Eete eee nen
+ tk a a SS Te, eek
+ Se Se a aie eae
+ MS sg eS
+ ip res oka
+ Sasa
+ === SECTION: REMARKS ===
+ TE.
+ 642,160.00
+ Remarks :M20 @ 6,486.46 E.&O.E.
+ M20 Qty :99 CU.MT @ 6486.46
+ Pumping Details
+ Deciaration :
+ We deciare to the best of our knowledge and belief that the particulars stated herein are true and correct and there is no additional consideration accruing to
+ us either directly or indirectly in any manner other than the amounts indicated here.
+ Terms & Condition :
+ LInterest will be recovered @24% p.a. on overdue unpaid bills. 2.Claim of any nature whatsoever will lapse unless raised In writing withing 3 days from the
+ date of invoice. Goods once sold cannot be return and/or exchanged. 3.We reserved to ourselves the right to demand payment of this bill any time before
+ due date. 4.Payment are to be made at our Offi ce by a/c payee's cheque.
+ === SECTION: BANK ===
+ Our Bank Details
+ Bank : SARASWAT CO OP BANK LTD.
+ Branch : VIKHROLI (WEST)
+ A/c No : 200500100000216
+ IFSC CODE : SRCB0000281 Receiver Signature
+ Page 1 of 1 Subject to Navi Mumbai Jc
+ === FULL DOCUMENT OCR ===
+ CMV Infraproiects Pvt Ltd :
+ Regd. Office : | « 105, YASH PARADISE CHS, SECTOR NO, BA, AIROUI, NAVI MUMBAL, Thane-400708
+ Email : admin@omvconcrete.com
+ Tel.- 72087871367 i
+ | Name Of State t Moharestira Code of State 1 2 7?
+ GSTN NO : 27AAFCCI4AIANIZO PAN No.: AAFCCI414N CIN : U74120MH2013PTC239596
+ To, Invoice No. Date
+ JINDAL TODAY INFRA LLP RM/000002/ 26-27 03/06/2026
+ Ground Floor, 48, TTC Industrial Area, Thane Belapur Road, Airoli, Period
+ Since tteawmeeaia ANN flag
+ t</ al, t-
+ Site Address : Terms of Payment : PO Date
+ oe 04/25/2026
+ : JINDAL TODAY INFRA LLP Fei
+ CAPITAL E0GE- Ground Floor, 48, TTC Industrial Area, Thane 7G.
+ .) Belapur Road, Alroli, Navi Mumbai- 400708. rae
+ Ee ee —
+ fScno[pescipuonarcooes—*YSNSaccove] quantity] unt | rate | Aroone_
+ ae 38245010 5497.00|  544203.00
+ E-INVOICE DETAILS CRETE HG Rap sep aeel CGST 9.00% 48978.27
+ Pape) ST 9.00% 48978.27
+ ACK No :AckNo":122632936994253, "AckDt":"2026-06-03 aS bee nee =a. 46 0.46
+ 18:53:00" Eee mete aes |
+ Biweneg Dan speapt oon |
+ Seton esas a
+ IRN No: Bee nemane tiga
+ Imn":"67352424604220290e4 1 26d62a2d0f8dd467bbe0es46cOd cece te sian eG
+ 3 A ie Si ook SETS SS
+ mittens Sosa ae
+ acaiioa's Total Amount :- 642,160.00
+ Amount in words : RUPEES SIX Lakh FOURTY TWO Thousand ONE Hundred SIXTY ONLY.
+ Remarks :M20 @ 6,486.46 E.&O.E.
+ M20 Qty :99 CU.MT @ 6486.46
+ Pumping Details
+ Deciaration :
+ We deciare to the best of our knowledge and belief that the particulars stated herein are true and correct and there is no additional consideration accruing to
+ us either directly or indirectly in any manner other than the amounts indicated here.
+ Terms & Condition :
+ L Interest will be recovered @24% p.a. on overdue unpaid bills. 2.Claim of any nature whatsoever will lapse unless raised In writing withing 3 days from the
+ date of invoice. Goods once sold cannot be return and/or exchanged. 3.We reserved to ourselves the right to demand payment of this bill any time before
+ due date. 4.Payment are to be made at our Offi ce by a/c payee's cheque.
+ Our Bank Details For CMV Infraproj
+ jects Py Ltd
+ Bank : SARASWAT CO OP BANK LTD, wet s
+ Branch __: VIKHROLI (WEST) SS CAN A
+ A/c No : 200500100000216 = eI “
+ IFSC CODE : SRCB0000281 Receiver Signature oO sed Signatory
+ Page 1 of 1 cert —
+ ag Subject to Navi Mumbai Jurisdiction Aa IROU
+ ee
