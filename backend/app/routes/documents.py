@@ -1,6 +1,7 @@
 import os
 import uuid
 import re
+import asyncio
 from pathlib import Path
 from typing import Optional
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Query
@@ -93,13 +94,14 @@ async def extract_document(
         file_ext = Path(file.filename).suffix.lower().lstrip(".")
 
         # Step 1: Universal Ingestion (PyMuPDF / Tesseract)
-        ingest_res = ingestor.ingest_file(saved_path)
+        ingest_res = await asyncio.to_thread(ingestor.ingest_file, saved_path)
 
         # Step 2: Document Classification
         doc_type, conf = classifier.classify(ingest_res["raw_text"])
 
         # Step 3: Cross-Verification & Dynamic JSON Generation
-        cv_res = cross_verifier.process_and_verify(
+        cv_res = await asyncio.to_thread(
+            cross_verifier.process_and_verify,
             doc_type=doc_type,
             raw_text=ingest_res["raw_text"],
             ocr_tables=ingest_res.get("tables", []),
@@ -219,10 +221,11 @@ async def reprocess_document(doc_id: str):
     if not doc or not os.path.exists(doc.get("file_path", "")):
         raise HTTPException(status_code=404, detail="Document or file not found")
 
-    ingest_res = ingestor.ingest_file(doc["file_path"])
+    ingest_res = await asyncio.to_thread(ingestor.ingest_file, doc["file_path"])
     doc_type, conf = classifier.classify(ingest_res["raw_text"])
 
-    cv_res = cross_verifier.process_and_verify(
+    cv_res = await asyncio.to_thread(
+        cross_verifier.process_and_verify,
         doc_type=doc_type,
         raw_text=ingest_res["raw_text"],
         ocr_tables=ingest_res.get("tables", []),

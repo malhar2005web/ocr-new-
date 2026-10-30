@@ -72,8 +72,8 @@ class CrossVerificationOrchestrator:
             for iss in val_result["issues"]:
                 discrepancy_reasons.append(f"Arithmetic Issue [{iss['issue_type']}]: {iss['message']}")
 
-        # Step 3: Trigger Recovery Pass if Discrepancy Found and LLM is Available
-        if discrepancy_reasons and llm_verifier.is_available():
+        # Step 3: Trigger Recovery Pass if Discrepancy Found and LLM was active in first pass
+        if discrepancy_reasons and llm_verifier.is_available() and extraction_mode == "hybrid_cross_verified":
             logger.warning(
                 f"Discrepancy detected during cross-verification ({len(discrepancy_reasons)} issues). "
                 "Triggering recovery pass with LLM auditor..."

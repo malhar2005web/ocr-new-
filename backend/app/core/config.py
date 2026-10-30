@@ -23,9 +23,9 @@ class Settings(BaseSettings):
     # OCR configuration
     TESSERACT_CMD: Optional[str] = None
 
-    # LLM configuration (free tier: Google Gemini 1.5 Flash recommended)
+    # LLM configuration (free tier: Google Gemini 3.5 Flash Lite / 3.8 Flash)
     LLM_PROVIDER: str = "gemini"
-    LLM_MODEL: str = "gemini-3.8-flash"
+    LLM_MODEL: str = "gemini-3.5-flash-lite"
     LLM_API_KEY: Optional[str] = None
 
     # Verification threshold

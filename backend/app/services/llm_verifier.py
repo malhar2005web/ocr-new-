@@ -84,32 +84,50 @@ class LLMVerificationEngine:
 
         user_content += "\nReturn structured JSON with all actually available sections."
 
+        # Model candidates with automatic fallback on 503 / 404
+        models_to_try = [self.model_name]
+        for fb in ["gemini-3.5-flash-lite", "gemini-3.8-flash"]:
+            if fb not in models_to_try:
+                models_to_try.append(fb)
+
+        response_text = None
+        for m_name in models_to_try:
+            try:
+                if self.provider == "gemini":
+                    response = self.client.models.generate_content(
+                        model=m_name,
+                        contents=user_content,
+                        config={
+                            "system_instruction": system_prompt,
+                            "response_mime_type": "application/json"
+                        }
+                    )
+                    response_text = response.text
+                    if response_text:
+                        break
+
+                elif self.provider == "openai":
+                    response = self.client.chat.completions.create(
+                        model=self.model_name,
+                        response_format={"type": "json_object"},
+                        messages=[
+                            {"role": "system", "content": system_prompt},
+                            {"role": "user", "content": user_content}
+                        ]
+                    )
+                    response_text = response.choices[0].message.content
+                    if response_text:
+                        break
+
+            except Exception as e:
+                logger.warning(f"LLM model '{m_name}' failed: {e}. Trying fallback if available...")
+                continue
+
+        if not response_text:
+            logger.error("All LLM verification attempts failed or timed out. Falling back to deterministic pipeline.")
+            return None
+
         try:
-            if self.provider == "gemini":
-                response = self.client.models.generate_content(
-                    model=self.model_name,
-                    contents=user_content,
-                    config={
-                        "system_instruction": system_prompt,
-                        "response_mime_type": "application/json"
-                    }
-                )
-                response_text = response.text
-
-            elif self.provider == "openai":
-                response = self.client.chat.completions.create(
-                    model=self.model_name,
-                    response_format={"type": "json_object"},
-                    messages=[
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_content}
-                    ]
-                )
-                response_text = response.choices[0].message.content
-
-            else:
-                return None
-
             cleaned_json_str = response_text.strip()
             cleaned_json_str = re.sub(r"^```(?:json)?\s*", "", cleaned_json_str)
             cleaned_json_str = re.sub(r"\s*```$", "", cleaned_json_str)
@@ -118,7 +136,7 @@ class LLMVerificationEngine:
             return clean_dynamic_json(parsed)
 
         except Exception as e:
-            logger.error(f"LLM verification call failed: {e}")
+            logger.error(f"Failed to parse LLM JSON response: {e}")
             return None
 
 llm_verifier = LLMVerificationEngine()
