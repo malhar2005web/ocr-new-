@@ -1,24 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, CheckCircle2, AlertTriangle, XCircle, ArrowUpRight, Cpu, Database, ScanText, RefreshCw } from 'lucide-react';
+import { FileText, CheckCircle2, AlertTriangle, XCircle, ArrowUpRight, RefreshCw } from 'lucide-react';
 import { api } from '../services/api';
 
 export default function DashboardView({ onNavigate, onSelectDocument }) {
   const [metrics, setMetrics] = useState({ total: 0, completed: 0, review: 0, failed: 0 });
   const [recentDocs, setRecentDocs] = useState([]);
-  const [systemHealth, setSystemHealth] = useState(null);
   const [loading, setLoading] = useState(true);
 
   const loadData = async () => {
     setLoading(true);
     try {
-      const [listRes, healthRes] = await Promise.all([
-        api.listDocuments({ limit: 8, sortBy: 'created_at', sortOrder: 'DESC' }),
-        api.getHealth().catch(() => null)
-      ]);
-
+      const listRes = await api.listDocuments({ limit: 8, sortBy: 'created_at', sortOrder: 'DESC' });
       const docs = listRes.documents || [];
       setRecentDocs(docs);
-      setSystemHealth(healthRes);
 
       // Compute statistics
       const total = listRes.total || docs.length;
@@ -97,45 +91,6 @@ export default function DashboardView({ onNavigate, onSelectDocument }) {
         </div>
       </div>
 
-      {/* System Infrastructure Status */}
-      {systemHealth && (
-        <div className="card" style={{ marginBottom: 32, padding: '20px 24px' }}>
-          <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: 14, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            Active Platform Engines & Storage
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <Database size={20} color={systemHealth.database?.connected ? 'var(--success)' : 'var(--warning)'} />
-              <div>
-                <div style={{ fontSize: '0.88rem', fontWeight: 600 }}>PostgreSQL Storage</div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                  {systemHealth.database?.connected ? 'Connected (Host: ' + systemHealth.database?.host + ')' : 'Fallback Storage Active'}
-                </div>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <ScanText size={20} color={systemHealth.ocr_engine?.available ? 'var(--success)' : 'var(--info)'} />
-              <div>
-                <div style={{ fontSize: '0.88rem', fontWeight: 600 }}>OCR Vision Engine</div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                  {systemHealth.ocr_engine?.available ? 'Tesseract Ready' : 'PyMuPDF Native Text'}
-                </div>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <Cpu size={20} color={systemHealth.llm_provider?.configured ? 'var(--success)' : 'var(--info)'} />
-              <div>
-                <div style={{ fontSize: '0.88rem', fontWeight: 600 }}>Inference Engine</div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                  {systemHealth.llm_provider?.configured ? `Open-Weight (${systemHealth.llm_provider?.model})` : 'Heuristic OCR Engine Active'}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Recent Activity Section */}
       <div className="card">
