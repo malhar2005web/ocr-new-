@@ -22,8 +22,21 @@ def build_frontend_response(doc_record: dict) -> dict:
     """
     Transforms internal DB record into the exact structure expected by DocumentDetailView.jsx.
     """
+    import json
     norm = doc_record.get("normalized_json") or {}
+    if isinstance(norm, str):
+        try:
+            norm = json.loads(norm)
+        except Exception:
+            norm = {}
+
     meta = doc_record.get("metadata_json") or {}
+    if isinstance(meta, str):
+        try:
+            meta = json.loads(meta)
+        except Exception:
+            meta = {}
+
     tables = meta.get("tables", [])
     raw_text = doc_record.get("raw_text", "")
 
@@ -116,11 +129,7 @@ async def extract_document(
             "classification_confidence": conf
         }
 
-        # Step 4: Index Document Chunks for RAG Q&A
-        if ingest_res.get("pages"):
-            await rag_service.chunk_and_index_document(doc_id, ingest_res["pages"])
-
-        # Step 5: Save Document in PostgreSQL Database
+        # Step 4: Save Document in PostgreSQL Database
         doc_record = {
             "id": doc_id,
             "filename": file.filename,
@@ -137,6 +146,13 @@ async def extract_document(
 
         saved_doc = await db.save_document(doc_record)
         await db.save_audit(doc_id, "ingested_and_extracted", {"document_type": doc_type})
+
+        # Step 5: Index Document Chunks for RAG Q&A (after document is committed)
+        if ingest_res.get("pages"):
+            try:
+                await rag_service.chunk_and_index_document(doc_id, ingest_res["pages"])
+            except Exception as e:
+                logger.warning(f"RAG chunk indexing skipped or failed for {doc_id}: {e}")
 
         response_data = build_frontend_response(saved_doc)
         response_data["document_id"] = doc_id
