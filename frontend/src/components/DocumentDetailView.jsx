@@ -15,6 +15,7 @@ export default function DocumentDetailView({ documentId, onBack }) {
   const [approving, setApproving] = useState(false);
   const [activeTab, setActiveTab] = useState('structured'); // structured, json, raw, rag, validation
   const [copied, setCopied] = useState(false);
+  const [copiedPolished, setCopiedPolished] = useState(false);
   const [copiedField, setCopiedField] = useState(null);
 
   const copyToClipboard = async (text, fieldName) => {
@@ -87,12 +88,23 @@ export default function DocumentDetailView({ documentId, onBack }) {
     }
   };
 
+  const handleCopyPolishedJSON = async () => {
+    if (!doc) return;
+    const success = await copyTextToClipboard(JSON.stringify(doc?.polished_json || {}, null, 2));
+    if (success) {
+      setCopiedPolished(true);
+      setTimeout(() => setCopiedPolished(false), 2000);
+    }
+  };
+
   const handleDownloadJSON = () => {
     if (!doc) return;
-    const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(displayJson, null, 2));
+    const jsonToDownload = activeTab === 'polished_json' ? (doc.polished_json || {}) : displayJson;
+    const suffix = activeTab === 'polished_json' ? '_polished.json' : '_structured.json';
+    const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(jsonToDownload, null, 2));
     const dlAnchor = document.createElement('a');
     dlAnchor.setAttribute('href', dataStr);
-    dlAnchor.setAttribute('download', `${doc.source?.filename || 'document'}_structured.json`);
+    dlAnchor.setAttribute('download', `${doc.source?.filename || 'document'}${suffix}`);
     dlAnchor.click();
   };
 
@@ -237,6 +249,12 @@ export default function DocumentDetailView({ documentId, onBack }) {
               onClick={() => setActiveTab('json')}
             >
               <Code size={15} style={{ verticalAlign: 'middle', marginRight: 6 }} /> Universal JSON
+            </button>
+            <button 
+              className={`tab-btn ${activeTab === 'polished_json' ? 'active' : ''}`}
+              onClick={() => setActiveTab('polished_json')}
+            >
+              <Code size={15} style={{ verticalAlign: 'middle', marginRight: 6 }} /> Polished JSON
             </button>
             <button 
               className={`tab-btn ${activeTab === 'rag' ? 'active' : ''}`}
@@ -601,6 +619,20 @@ export default function DocumentDetailView({ documentId, onBack }) {
               </div>
               <div className="code-block" style={{ flex: 1, maxHeight: 580, overflowY: 'auto' }}>
                 {JSON.stringify(displayJson, null, 2)}
+              </div>
+            </div>
+          )}
+
+          {/* Tab 2b: Polished JSON */}
+          {activeTab === 'polished_json' && (
+            <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginBottom: 8 }}>
+                <button className="btn btn-secondary" style={{ padding: '6px 12px', fontSize: '0.8rem' }} onClick={handleCopyPolishedJSON}>
+                  {copiedPolished ? <Check size={14} color="var(--success)" /> : <Copy size={14} />} {copiedPolished ? 'Copied' : 'Copy JSON'}
+                </button>
+              </div>
+              <div className="code-block" style={{ flex: 1, maxHeight: 580, overflowY: 'auto' }}>
+                {JSON.stringify(doc?.polished_json || {}, null, 2)}
               </div>
             </div>
           )}

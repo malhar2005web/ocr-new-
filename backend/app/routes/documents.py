@@ -13,6 +13,7 @@ from app.db.database import db
 from app.services.ingestor import ingestor
 from app.services.classifier import classifier
 from app.services.cross_verifier import cross_verifier
+from app.services.polished_json_service import polished_json_service
 from app.services.rag_service import rag_service
 from app.schemas.document import RAGQueryRequest
 
@@ -54,6 +55,13 @@ def build_frontend_response(doc_record: dict) -> dict:
                     flatten_for_kv(v, p)
     flatten_for_kv(norm)
 
+    polished = doc_record.get("polished_json") or meta.get("polished_json")
+    if not polished and norm:
+        try:
+            polished = polished_json_service.generate_polished_json(norm, raw_text)
+        except Exception:
+            polished = {}
+
     return {
         "id": doc_record["id"],
         "document_id": doc_record["id"],
@@ -78,6 +86,7 @@ def build_frontend_response(doc_record: dict) -> dict:
         },
         "raw_text": raw_text,
         "normalized_json": norm,
+        "polished_json": polished or {},
         "validation": meta.get("validation", {"status": "completed", "issues": []}),
         "extraction_metadata": meta.get("extraction_metadata", {
             "pdf_method": "pymupdf_native_vector",
@@ -122,11 +131,19 @@ async def extract_document(
             is_scanned=ingest_res.get("is_scanned", False)
         )
 
+        # Step 3b: Polished Accounting JSON Generation
+        polished_json = await asyncio.to_thread(
+            polished_json_service.generate_polished_json,
+            cv_res["normalized_json"],
+            ingest_res["raw_text"]
+        )
+
         metadata_payload = {
             "tables": ingest_res.get("tables", []),
             "validation": cv_res["validation"],
             "extraction_metadata": cv_res["extraction_metadata"],
-            "classification_confidence": conf
+            "classification_confidence": conf,
+            "polished_json": polished_json
         }
 
         # Step 4: Save Document in PostgreSQL Database
@@ -141,7 +158,8 @@ async def extract_document(
             "page_count": ingest_res.get("page_count", 1),
             "raw_text": ingest_res.get("raw_text", ""),
             "normalized_json": cv_res["normalized_json"],
-            "metadata_json": metadata_payload
+            "metadata_json": metadata_payload,
+            "polished_json": polished_json
         }
 
         saved_doc = await db.save_document(doc_record)
@@ -249,11 +267,18 @@ async def reprocess_document(doc_id: str):
         is_scanned=ingest_res.get("is_scanned", False)
     )
 
+    polished_json = await asyncio.to_thread(
+        polished_json_service.generate_polished_json,
+        cv_res["normalized_json"],
+        ingest_res["raw_text"]
+    )
+
     metadata_payload = {
         "tables": ingest_res.get("tables", []),
         "validation": cv_res["validation"],
         "extraction_metadata": cv_res["extraction_metadata"],
-        "classification_confidence": conf
+        "classification_confidence": conf,
+        "polished_json": polished_json
     }
 
     doc["document_type"] = doc_type
@@ -261,6 +286,7 @@ async def reprocess_document(doc_id: str):
     doc["raw_text"] = ingest_res["raw_text"]
     doc["normalized_json"] = cv_res["normalized_json"]
     doc["metadata_json"] = metadata_payload
+    doc["polished_json"] = polished_json
 
     updated = await db.save_document(doc)
     await db.save_audit(doc_id, "reprocessed", {"status": doc["status"]})
