@@ -47,66 +47,58 @@ class PolishedJSONService:
             "You are an expert ERP & Accounting Data Architect. "
             "Your task is to transform the provided extracted document JSON into a standardized "
             "Purchase Book / Accounting JSON structure.\n\n"
-            "TARGET SCHEMA:\n"
+            "TARGET SCHEMA (PRESERVE EXACT SECTION ORDER AND KEY NAMES):\n"
             "{\n"
-            '  "GRN_No_Bill_No_Voucher_No": "<Invoice / Bill / GRN / Voucher Number>",\n'
-            '  "Bill_Date": "<Document Date e.g. DD/MM/YYYY>",\n'
-            '  "Supplier": {\n'
-            '    "name": "<Supplier / Seller Company Name>",\n'
-            '    "address": "<Supplier Address>",\n'
-            '    "gstin": "<Supplier GSTIN>",\n'
-            '    "pan": "<Supplier PAN>"\n'
-            '  },\n'
             '  "Products": [\n'
             '    {\n'
             '      "SrNo": 1,\n'
+            '      "Pcs_Qty": {\n'
+            '        "pcs": <pcs or bales as number>,\n'
+            '        "unit": "<MTR. / Mtr / KGS / PCS / NOS etc.>\",\n'
+            '        "quantity": <item quantity as number>\n'
+            '      },\n'
             '      "Product": "<Product or Item Description>",\n'
-            '      "Product_Details": "<Combined details e.g. HSN 520811, Lot No. 547, Bale No. B-701>",\n'
+            '      "Product_Details": "<Combined details e.g. HSN 5208, Lot No. 547>",\n'
             '      "Value_Rate_Product_Amount": {\n'
             '        "rate": <unit rate as number>,\n'
             '        "amount": <line item amount as number>\n'
-            '      },\n'
-            '      "Pcs_Qty": {\n'
-            '        "pcs": <pcs or bales as number>,\n'
-            '        "quantity": <item quantity as number>,\n'
-            '        "unit": "<MTR. / KGS / PCS / NOS etc.>"\n'
             '      }\n'
             '    }\n'
             '  ],\n'
-            '  "Other_Information_Remark_Narration_Description_TNC": {\n'
-            '    "discount": <discount amount as number if present>,\n'
-            '    "buyer": "<Buyer / Billed To Name>",\n'
-            '    "buyer_gstin": "<Buyer GSTIN>",\n'
-            '    "bank_details": {\n'
-            '      "bank_name": "<Bank Name>",\n'
-            '      "branch": "<Branch Name>",\n'
-            '      "account_number": "<Account Number>",\n'
-            '      "ifsc": "<IFSC Code>"\n'
-            '    },\n'
-            '    "remarks": "<Any remarks / narrations / terms>"\n'
+            '  "Supplier": {\n'
+            '    "pan": "<Supplier PAN>",\n'
+            '    "name": "<Supplier / Seller Company Name>",\n'
+            '    "gstin": "<Supplier GSTIN>",\n'
+            '    "address": "<Supplier Address>"\n'
             '  },\n'
+            '  "Bill_Date": "<Document Date e.g. 14-Dec-21 or DD/MM/YYYY>",\n'
+            '  "Total_Pcs": <Total pieces as number>,\n'
+            '  "Total_Qty": <Total quantity as number>,\n'
+            '  "Invoice_Amount": <Grand total / Total payable amount as number>,\n'
             '  "Location_Address": {\n'
             '    "name": "<Consignee / Shipped To / Delivery Site Name>",\n'
-            '    "address": "<Consignee / Delivery Address>",\n'
-            '    "gstin": "<Consignee GSTIN>"\n'
+            '    "address": "<Consignee / Delivery Address>"\n'
             '  },\n'
+            '  "GRN_No_Bill_No_Voucher_No": "<Invoice / Bill / GRN / Voucher Number>",\n'
             '  "TaxAmt_Tax_Taxable_Amount": {\n'
-            '    "taxable_amount": <taxable amount as number>,\n'
             '    "cgst": <CGST amount as number>,\n'
             '    "sgst": <SGST amount as number>,\n'
-            '    "igst": <IGST amount as number>,\n'
-            '    "total_tax": <total tax as number>\n'
+            '    "total_tax": <total tax as number>,\n'
+            '    "taxable_amount": <taxable amount as number>\n'
             '  },\n'
-            '  "Invoice_Amount": <Grand total / Total payable amount as number>,\n'
-            '  "Total_Qty": <Total quantity as number>,\n'
-            '  "Total_Pcs": <Total pieces as number>\n'
+            '  "Other_Information_Remark_Narration_Description_TNC": {\n'
+            '    "buyer": "<Buyer / Billed To Name>",\n'
+            '    "remarks": "<Any remarks / narrations / terms>",\n'
+            '    "buyer_gstin": "<Buyer GSTIN>"\n'
+            '  }\n'
             "}\n\n"
             "STRICT RULES:\n"
             "1. Output ONLY valid parseable JSON matching the target schema.\n"
-            "2. Map similar fields intelligently: e.g. Consignee / Ship-To / Site address maps to 'Location_Address'.\n"
-            "3. Omit null or empty fields if not present in the input.\n"
-            "4. Convert numeric values to numbers (float/int) where appropriate.\n"
-            "5. Do not invent any numbers, names or codes."
+            "2. Ensure segregation between the recurring 'Products' array and the main document fields.\n"
+            "3. Map similar fields intelligently: e.g. Consignee / Ship-To / Site address maps to 'Location_Address'.\n"
+            "4. Omit null or empty fields if not present in the input.\n"
+            "5. Convert numeric values to numbers (float/int) where appropriate.\n"
+            "6. Do not invent any numbers, names or codes."
         )
 
         user_content = (
@@ -180,7 +172,7 @@ class PolishedJSONService:
         supplier_raw = u.get("supplier") or u.get("seller") or u.get("vendor") or {}
         supplier_obj = {}
         if isinstance(supplier_raw, dict):
-            for k in ["name", "address", "gstin", "pan"]:
+            for k in ["pan", "name", "gstin", "address"]:
                 if supplier_raw.get(k):
                     supplier_obj[k] = supplier_raw[k]
         elif isinstance(supplier_raw, str):
@@ -245,37 +237,40 @@ class PolishedJSONService:
             if itm.get("unit"):
                 pcs_qty["unit"] = itm.get("unit")
 
-            p_entry = {"SrNo": int(sr) if str(sr).isdigit() else sr, "Product": prod_name}
+            p_entry = {"SrNo": int(sr) if str(sr).isdigit() else sr}
+            if pcs_qty:
+                p_entry["Pcs_Qty"] = pcs_qty
+            p_entry["Product"] = prod_name
             if details_str:
                 p_entry["Product_Details"] = details_str
             if val_rate:
                 p_entry["Value_Rate_Product_Amount"] = val_rate
-            if pcs_qty:
-                p_entry["Pcs_Qty"] = pcs_qty
 
             products.append(p_entry)
 
         # 5. Other Information / Remark / Narration / Description / TNC
         other_info = {}
-        disc_val = _parse_float(u.get("discount") or u.get("trade_discount"))
-        if disc_val is not None:
-            other_info["discount"] = disc_val
-
         buyer_raw = u.get("buyer") or u.get("customer") or {}
         if isinstance(buyer_raw, dict):
             if buyer_raw.get("name"):
                 other_info["buyer"] = buyer_raw["name"]
-            if buyer_raw.get("gstin"):
-                other_info["buyer_gstin"] = buyer_raw["gstin"]
         elif isinstance(buyer_raw, str):
             other_info["buyer"] = buyer_raw
+
+        if u.get("remarks") or u.get("narration"):
+            other_info["remarks"] = u.get("remarks") or u.get("narration")
+
+        if isinstance(buyer_raw, dict) and buyer_raw.get("gstin"):
+            other_info["buyer_gstin"] = buyer_raw["gstin"]
+
+        disc_val = _parse_float(u.get("discount") or u.get("trade_discount"))
+        if disc_val is not None:
+            other_info["discount"] = disc_val
 
         bank_raw = u.get("bank_details") or {}
         if isinstance(bank_raw, dict) and bank_raw:
             other_info["bank_details"] = bank_raw
 
-        if u.get("remarks") or u.get("narration"):
-            other_info["remarks"] = u.get("remarks") or u.get("narration")
         if u.get("terms_and_conditions"):
             other_info["terms_and_conditions"] = u["terms_and_conditions"]
 
@@ -297,18 +292,18 @@ class PolishedJSONService:
         igst_val = _parse_float(u.get("igst_amount") or u.get("igst"))
         total_tax_val = _parse_float(u.get("total_gst") or u.get("total_tax"))
 
-        if taxable_val is not None:
-            tax_obj["taxable_amount"] = taxable_val
         if cgst_val is not None:
             tax_obj["cgst"] = cgst_val
         if sgst_val is not None:
             tax_obj["sgst"] = sgst_val
-        if igst_val is not None:
+        if igst_val is not None and igst_val > 0:
             tax_obj["igst"] = igst_val
         if total_tax_val is not None:
             tax_obj["total_tax"] = total_tax_val
         elif cgst_val is not None and sgst_val is not None:
             tax_obj["total_tax"] = round(cgst_val + sgst_val + (igst_val or 0.0), 2)
+        if taxable_val is not None:
+            tax_obj["taxable_amount"] = taxable_val
 
         # 8. Invoice Amount
         inv_amt = _parse_float(
@@ -318,25 +313,6 @@ class PolishedJSONService:
             or u.get("total_amount")
         )
 
-        # Assemble Polished JSON
-        result = {}
-        if bill_no:
-            result["GRN_No_Bill_No_Voucher_No"] = str(bill_no)
-        if bill_date:
-            result["Bill_Date"] = str(bill_date)
-        if supplier_obj:
-            result["Supplier"] = supplier_obj
-        if products:
-            result["Products"] = products
-        if other_info:
-            result["Other_Information_Remark_Narration_Description_TNC"] = other_info
-        if location_obj:
-            result["Location_Address"] = location_obj
-        if tax_obj:
-            result["TaxAmt_Tax_Taxable_Amount"] = tax_obj
-        if inv_amt is not None:
-            result["Invoice_Amount"] = inv_amt
-
         # Totals
         printed_qty = _parse_float(u.get("total_quantity") or u.get("total_qty"))
         printed_pcs = _parse_float(u.get("total_pieces") or u.get("total_pcs"))
@@ -344,11 +320,30 @@ class PolishedJSONService:
         final_qty = printed_qty if printed_qty is not None else (round(tot_qty, 2) if tot_qty > 0 else None)
         final_pcs = int(printed_pcs) if printed_pcs is not None else (tot_pcs if tot_pcs > 0 else None)
 
-        if final_qty is not None:
-            result["Total_Qty"] = final_qty
+        # Assemble Polished JSON (Recurring Products Section First, followed by Main Section)
+        result = {}
+        if products:
+            result["Products"] = products
+        if supplier_obj:
+            result["Supplier"] = supplier_obj
+        if bill_date:
+            result["Bill_Date"] = str(bill_date)
         if final_pcs is not None:
             result["Total_Pcs"] = final_pcs
+        if final_qty is not None:
+            result["Total_Qty"] = final_qty
+        if inv_amt is not None:
+            result["Invoice_Amount"] = inv_amt
+        if location_obj:
+            result["Location_Address"] = location_obj
+        if bill_no:
+            result["GRN_No_Bill_No_Voucher_No"] = str(bill_no)
+        if tax_obj:
+            result["TaxAmt_Tax_Taxable_Amount"] = tax_obj
+        if other_info:
+            result["Other_Information_Remark_Narration_Description_TNC"] = other_info
 
         return clean_dynamic_json(result)
 
 polished_json_service = PolishedJSONService()
+

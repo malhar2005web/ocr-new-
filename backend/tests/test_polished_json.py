@@ -50,6 +50,12 @@ def test_polished_json_mapping_full_sample():
 
     polished = polished_json_service.generate_polished_json(universal_sample)
 
+    # Assert Recurring Section (Products) is first, followed by Main Section
+    keys = list(polished.keys())
+    assert keys[0] == "Products"
+    assert keys[1] == "Supplier"
+    assert keys[2] == "Bill_Date"
+
     assert polished["GRN_No_Bill_No_Voucher_No"] == "SA-992"
     assert polished["Bill_Date"] == "07/10/2026"
     assert polished["Supplier"]["name"] == "SHREE NAKODA TEXTILES"
@@ -57,6 +63,10 @@ def test_polished_json_mapping_full_sample():
     
     assert len(polished["Products"]) == 1
     p = polished["Products"][0]
+    p_keys = list(p.keys())
+    assert p_keys[0] == "SrNo"
+    assert p_keys[1] == "Pcs_Qty"
+    assert p_keys[2] == "Product"
     assert p["SrNo"] == 1
     assert p["Product"] == "SAMLL SALLY GADWAL 2218"
     assert "HSN 520811" in p["Product_Details"]
@@ -88,3 +98,4 @@ def test_polished_json_mapping_full_sample():
     assert polished["Invoice_Amount"] == 155747.00
     assert polished["Total_Qty"] == 5201.30
     assert polished["Total_Pcs"] == 48
+
