@@ -56,7 +56,7 @@ def build_frontend_response(doc_record: dict) -> dict:
     flatten_for_kv(norm)
 
     polished = doc_record.get("polished_json") or meta.get("polished_json")
-    if not polished and norm:
+    if (not polished or "Purchase Books" not in polished) and norm:
         try:
             polished = polished_json_service.generate_polished_json(norm, raw_text)
         except Exception:
