@@ -1,10 +1,9 @@
 import json
 import re
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from app.core.config import settings
 from app.core.logging import logger
 from app.services.llm_verifier import llm_verifier
-from app.services.json_generator import clean_dynamic_json
 
 def _parse_float(val: Any) -> Optional[float]:
     if val is None:
@@ -19,86 +18,83 @@ def _parse_float(val: Any) -> Optional[float]:
             return None
     return None
 
+def _clean_str(val: Any) -> str:
+    if val is None:
+        return ""
+    return str(val).strip()
+
 class PolishedJSONService:
     """
-    Transforms universal/raw extracted document JSON into the standardized
-    Purchase Books & ERP Accounting format with AI semantic field matching
-    and deterministic zero-fail fallback.
+    Transforms universal extracted document JSON into the exact
+    Purchase Books accounting schema requested by the user,
+    with identical field names and spacing.
     """
 
     def generate_polished_json(self, universal_json: Dict[str, Any], raw_text: str = "") -> Dict[str, Any]:
         if not universal_json:
             return {}
 
-        # Attempt AI Semantic Polishing via Gemini
+        # 1. Attempt AI Semantic Polishing via Gemini
         if llm_verifier.is_available():
             try:
                 ai_result = self._generate_with_ai(universal_json, raw_text)
-                if ai_result and isinstance(ai_result, dict) and len(ai_result) > 2:
-                    return clean_dynamic_json(ai_result)
+                if ai_result and isinstance(ai_result, dict):
+                    # Check if 'Purchase Books' key is present or root keys
+                    if "Purchase Books" in ai_result and isinstance(ai_result["Purchase Books"], dict):
+                        return ai_result
+                    elif "Bill No" in ai_result or "Supplier" in ai_result:
+                        return {"Purchase Books": ai_result}
             except Exception as e:
                 logger.warning(f"AI Polished JSON generation skipped/failed ({e}). Using deterministic mapper.")
 
-        # Fallback to Deterministic Mapping
+        # 2. Fallback to Deterministic Mapping
         return self._generate_deterministic(universal_json, raw_text)
 
     def _generate_with_ai(self, universal_json: Dict[str, Any], raw_text: str = "") -> Optional[Dict[str, Any]]:
         system_prompt = (
-            "You are an expert ERP & Accounting Data Architect. "
-            "Your task is to transform the provided extracted document JSON into a standardized "
-            "Purchase Book / Accounting JSON structure.\n\n"
-            "TARGET SCHEMA (PRESERVE EXACT SECTION ORDER AND KEY NAMES):\n"
+            "You are an expert ERP & Accounting Data Architect.\n"
+            "Your task is to transform the provided extracted document data into the EXACT Purchase Books accounting schema below.\n\n"
+            "CRITICAL: USE THE EXACT FIELD NAMES AND EXACT SPACING SHOWN BELOW. DO NOT ALTER OR RENAME ANY KEYS.\n\n"
+            "TARGET SCHEMA:\n"
             "{\n"
-            '  "Products": [\n'
-            '    {\n'
-            '      "SrNo": 1,\n'
-            '      "Pcs_Qty": {\n'
-            '        "pcs": <pcs or bales as number>,\n'
-            '        "unit": "<MTR. / Mtr / KGS / PCS / NOS etc.>\",\n'
-            '        "quantity": <item quantity as number>\n'
-            '      },\n'
-            '      "Product": "<Product or Item Description>",\n'
-            '      "Product_Details": "<Combined details e.g. HSN 5208, Lot No. 547>",\n'
-            '      "Value_Rate_Product_Amount": {\n'
-            '        "rate": <unit rate as number>,\n'
-            '        "amount": <line item amount as number>\n'
-            '      }\n'
-            '    }\n'
-            '  ],\n'
-            '  "Supplier": {\n'
-            '    "pan": "<Supplier PAN>",\n'
-            '    "name": "<Supplier / Seller Company Name>",\n'
-            '    "gstin": "<Supplier GSTIN>",\n'
-            '    "address": "<Supplier Address>"\n'
-            '  },\n'
-            '  "Bill_Date": "<Document Date e.g. 14-Dec-21 or DD/MM/YYYY>",\n'
-            '  "Total_Pcs": <Total pieces as number>,\n'
-            '  "Total_Qty": <Total quantity as number>,\n'
-            '  "Invoice_Amount": <Grand total / Total payable amount as number>,\n'
-            '  "Location_Address": {\n'
-            '    "name": "<Consignee / Shipped To / Delivery Site Name>",\n'
-            '    "address": "<Consignee / Delivery Address>"\n'
-            '  },\n'
-            '  "GRN_No_Bill_No_Voucher_No": "<Invoice / Bill / GRN / Voucher Number>",\n'
-            '  "TaxAmt_Tax_Taxable_Amount": {\n'
+            '  "Purchase Books": {\n'
+            '    "GRN No.": "<GRN number if printed, else empty string \"\">",\n'
+            '    "Voucher No": "<Voucher or Invoice Number e.g. MT/1520>",\n'
+            '    "Voucher Date  :": "<Voucher date or Invoice date e.g. 14-Dec-21>",\n'
+            '    "Supplier": "<Supplier / Seller Company Name as string>",\n'
+            '    "Bill No": "<Vendor Bill Number / Invoice Number e.g. MT/1520>",\n'
+            '    "Bill Date  ": "<Vendor Bill Date e.g. 14-Dec-21>",\n'
+            '    "Product Amount": <total assessable / line item product value as number>,\n'
+            '    "Taxable Amount": <taxable amount as number>,\n'
+            '    "Total Qty": <total quantity as number>,\n'
+            '    "Total Pcs": <total pieces / bales as number>,\n'
+            '    "total Tax": <total tax amount as number>,\n'
+            '    "Invoice Amount": <grand total / invoice payable amount as number>,\n'
+            '    "Narration": "<narration, remarks or payment notes from the invoice>",\n'
+            '    "Product Details": [\n'
+            "      {\n"
+            '        "SrNo": 1,\n'
+            '        "Product": "<Full product description>",\n'
+            '        "Qty": <item quantity as number>,\n'
+            '        "Rate": <item rate as number>,\n'
+            '        "Value": <item amount / value as number>,\n'
+            '        "Pcs": <item pieces / bales as number>,\n'
+            '        "Quality": "<quality name / construction e.g. Rudraksh 52*50-47>",\n'
+            '        "Other Information": "<bale numbers or lot number e.g. BALE NO 394 TO 400>",\n'
+            '        "Location": "<delivery site or consignee location address>",\n'
+            '        "Remark": "<item remark e.g. BALE[7}>",\n'
+            '        "Chapter Heading": "<HSN code or chapter heading e.g. 5208>"\n'
+            "      }\n"
+            "    ],\n"
+            '    "Terms": "<terms and conditions, interest, due date text>",\n'
             '    "cgst": <CGST amount as number>,\n'
-            '    "sgst": <SGST amount as number>,\n'
-            '    "total_tax": <total tax as number>,\n'
-            '    "taxable_amount": <taxable amount as number>\n'
-            '  },\n'
-            '  "Other_Information_Remark_Narration_Description_TNC": {\n'
-            '    "buyer": "<Buyer / Billed To Name>",\n'
-            '    "remarks": "<Any remarks / narrations / terms>",\n'
-            '    "buyer_gstin": "<Buyer GSTIN>"\n'
-            '  }\n'
+            '    "sgst": <SGST amount as number>\n'
+            "  }\n"
             "}\n\n"
-            "STRICT RULES:\n"
-            "1. Output ONLY valid parseable JSON matching the target schema.\n"
-            "2. Ensure segregation between the recurring 'Products' array and the main document fields.\n"
-            "3. Map similar fields intelligently: e.g. Consignee / Ship-To / Site address maps to 'Location_Address'.\n"
-            "4. Omit null or empty fields if not present in the input.\n"
-            "5. Convert numeric values to numbers (float/int) where appropriate.\n"
-            "6. Do not invent any numbers, names or codes."
+            "RULES:\n"
+            "1. Output ONLY valid parseable JSON matching the exact schema above.\n"
+            "2. Note the EXACT SPACING: 'Voucher Date  :' has 2 spaces before colon, 'Bill Date  ' has 2 spaces after Date, 'total Tax' has lowercase 't'.\n"
+            "3. Do not invent any fake numbers or names. Extract accurately from source."
         )
 
         user_content = (
@@ -107,7 +103,7 @@ class PolishedJSONService:
         if raw_text:
             user_content += f"RAW DOCUMENT EXCERPT:\n{raw_text[:8000]}\n\n"
 
-        user_content += "Produce the Polished JSON strictly following the target accounting schema."
+        user_content += "Produce the Purchase Books JSON strictly following the target schema."
 
         models_to_try = [settings.LLM_MODEL, "gemini-3.5-flash-lite", "gemini-3.8-flash"]
         seen_models = []
@@ -139,211 +135,218 @@ class PolishedJSONService:
 
     def _generate_deterministic(self, u: Dict[str, Any], raw_text: str = "") -> Dict[str, Any]:
         """
-        Robust deterministic mapper guaranteeing 100% availability of the Polished JSON structure.
+        Deterministic mapper producing the EXACT Purchase Books schema with identical field names and spacing.
         """
-        # 1. Invoice / Bill Number
-        bill_no = (
+        # Bill / Invoice Number
+        bill_no = _clean_str(
             u.get("invoice_number")
             or u.get("invoice_no")
             or u.get("bill_no")
-            or u.get("grn_no")
             or u.get("voucher_no")
+            or u.get("GRN_No_Bill_No_Voucher_No")
             or u.get("challan_no")
-            or u.get("document_id")
         )
         if not bill_no and raw_text:
-            m = re.search(r"\b(?:invoice\s*no\.?|bill\s*no\.?|challan\s*no\.?)\s*[:\-]?\s*([A-Za-z0-9\/\-]+)", raw_text, re.IGNORECASE)
+            m = re.search(r"\b(?:invoice\s*no\.?|bill\s*no\.?|voucher\s*no\.?)\s*[:\-]?\s*([A-Za-z0-9\/\-]+)", raw_text, re.IGNORECASE)
             if m:
                 bill_no = m.group(1).strip()
 
-        # 2. Bill Date
-        bill_date = (
+        # Bill Date
+        bill_date = _clean_str(
             u.get("invoice_date")
-            or u.get("date")
             or u.get("bill_date")
+            or u.get("Bill_Date")
+            or u.get("date")
             or u.get("dated")
         )
         if not bill_date and raw_text:
-            m = re.search(r"\b(?:date|dated)\s*[:\-]?\s*(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})", raw_text, re.IGNORECASE)
+            m = re.search(r"\b(?:date|dated)\s*[:\-]?\s*(\d{1,2}[\/\-\.][A-Za-z0-9]+[\/\-\.]\d{2,4})", raw_text, re.IGNORECASE)
             if m:
                 bill_date = m.group(1).strip()
 
-        # 3. Supplier / Seller
-        supplier_raw = u.get("supplier") or u.get("seller") or u.get("vendor") or {}
-        supplier_obj = {}
-        if isinstance(supplier_raw, dict):
-            for k in ["pan", "name", "gstin", "address"]:
-                if supplier_raw.get(k):
-                    supplier_obj[k] = supplier_raw[k]
-        elif isinstance(supplier_raw, str):
-            supplier_obj["name"] = supplier_raw
+        # Supplier Name
+        supplier_val = u.get("supplier") or u.get("Supplier") or u.get("seller") or u.get("vendor") or ""
+        if isinstance(supplier_val, dict):
+            supplier_name = _clean_str(supplier_val.get("name") or supplier_val.get("supplier_name") or "")
+        else:
+            supplier_name = _clean_str(supplier_val)
+        if not supplier_name and raw_text:
+            lines = [ln.strip() for ln in raw_text.splitlines() if ln.strip()]
+            for ln in lines[:6]:
+                if any(kw in ln.lower() for kw in ["textile", "mills", "solutions", "traders", "enterprises", "company", "ltd", "llp"]):
+                    supplier_name = ln
+                    break
 
-        # 4. Products / Items
+        # Location Address (Consignee / Delivery site)
+        loc_val = u.get("consignee") or u.get("Location_Address") or u.get("shipped_to") or {}
+        location_str = ""
+        if isinstance(loc_val, dict):
+            parts = [loc_val.get("name"), loc_val.get("address")]
+            location_str = ", ".join([p.strip() for p in parts if p and str(p).strip()])
+        elif isinstance(loc_val, str):
+            location_str = loc_val.strip()
+
+        # Products list
         raw_items = (
-            u.get("line_items")
+            u.get("Product Details")
+            or u.get("Products")
+            or u.get("line_items")
             or u.get("items")
             or u.get("goods_and_tax_details", {}).get("items")
             or []
         )
-        products = []
+        products_list: List[Dict[str, Any]] = []
         tot_qty = 0.0
         tot_pcs = 0
+        tot_val = 0.0
 
         for idx, itm in enumerate(raw_items, start=1):
             if not isinstance(itm, dict):
                 continue
-            sr = itm.get("sr_no") or itm.get("serial_number") or idx
-            prod_name = itm.get("product_name") or itm.get("product_description") or itm.get("description") or "Item"
+            sr = itm.get("SrNo") or itm.get("sr_no") or itm.get("serial_number") or idx
+            prod_name = _clean_str(itm.get("Product") or itm.get("product_name") or itm.get("product_description") or itm.get("description") or "Goods")
             
-            # Details: HSN, Lot No, Bale No
-            details_parts = []
-            if itm.get("hsn_code") or itm.get("hsn"):
-                details_parts.append(f"HSN {itm.get('hsn_code') or itm.get('hsn')}")
-            if itm.get("lot_no"):
-                details_parts.append(f"Lot No. {itm.get('lot_no')}")
-            if itm.get("bale_no") or itm.get("bale"):
-                details_parts.append(f"Bale {itm.get('bale_no') or itm.get('bale')}")
-            details_str = ", ".join(details_parts) if details_parts else None
+            # Rate & Value / Amount
+            val_rate = itm.get("Value_Rate_Product_Amount") or {}
+            rate_val = _parse_float(itm.get("Rate") or itm.get("rate") or val_rate.get("rate") or itm.get("rate_per_unit"))
+            amt_val = _parse_float(itm.get("Value") or itm.get("amount") or itm.get("value") or val_rate.get("amount"))
 
-            # Rate & Amount
-            rate_val = _parse_float(itm.get("rate_per_unit") or itm.get("rate"))
-            amt_val = _parse_float(itm.get("amount") or itm.get("value") or itm.get("total"))
-            val_rate = {}
-            if rate_val is not None:
-                val_rate["rate"] = rate_val
-            if amt_val is not None:
-                val_rate["amount"] = amt_val
-
-            # Pcs & Quantity
-            qty_val = _parse_float(itm.get("quantity") or itm.get("qty"))
+            # Qty & Pcs
+            pcs_qty = itm.get("Pcs_Qty") or {}
+            qty_val = _parse_float(itm.get("Qty") or itm.get("quantity") or itm.get("qty") or pcs_qty.get("quantity"))
             pcs_val = None
-            raw_pcs = itm.get("pieces") or itm.get("pcs") or itm.get("bale_no")
+            raw_pcs = itm.get("Pcs") or itm.get("pcs") or itm.get("pieces") or pcs_qty.get("pcs")
             if raw_pcs is not None:
                 try:
                     pcs_val = int(float(str(raw_pcs).replace(",", "")))
                 except Exception:
                     pass
 
-            if qty_val:
-                tot_qty += qty_val
-            if pcs_val:
-                tot_pcs += pcs_val
-
-            pcs_qty = {}
-            if pcs_val is not None:
-                pcs_qty["pcs"] = pcs_val
             if qty_val is not None:
-                pcs_qty["quantity"] = qty_val
-            if itm.get("unit"):
-                pcs_qty["unit"] = itm.get("unit")
+                tot_qty += qty_val
+            if pcs_val is not None:
+                tot_pcs += pcs_val
+            if amt_val is not None:
+                tot_val += amt_val
 
-            p_entry = {"SrNo": int(sr) if str(sr).isdigit() else sr}
-            if pcs_qty:
-                p_entry["Pcs_Qty"] = pcs_qty
-            p_entry["Product"] = prod_name
-            if details_str:
-                p_entry["Product_Details"] = details_str
-            if val_rate:
-                p_entry["Value_Rate_Product_Amount"] = val_rate
+            # Quality
+            quality_val = _clean_str(itm.get("Quality"))
+            if not quality_val:
+                m_q = re.search(r"\b([A-Za-z0-9\-]+(?:\s*\d+[\*x]\d+[\*x\-]?\d*))\b", prod_name)
+                if m_q:
+                    quality_val = m_q.group(1).strip()
+                elif " - " in prod_name:
+                    quality_val = prod_name.split(" - ")[0].strip()
 
-            products.append(p_entry)
+            # Other Information (Bale no, lot no)
+            other_info_val = _clean_str(itm.get("Other Information") or itm.get("Other_Information"))
+            if not other_info_val:
+                parts = []
+                if itm.get("lot_no"):
+                    parts.append(f"Lot No. {itm.get('lot_no')}")
+                if itm.get("bale_no"):
+                    parts.append(f"Bale No. {itm.get('bale_no')}")
+                m_bale = re.search(r"\b(BALE\s*NO[^\(\{\[]+)", prod_name, re.IGNORECASE)
+                if m_bale:
+                    parts.append(m_bale.group(1).strip())
+                other_info_val = ", ".join(parts)
 
-        # 5. Other Information / Remark / Narration / Description / TNC
-        other_info = {}
-        buyer_raw = u.get("buyer") or u.get("customer") or {}
-        if isinstance(buyer_raw, dict):
-            if buyer_raw.get("name"):
-                other_info["buyer"] = buyer_raw["name"]
-        elif isinstance(buyer_raw, str):
-            other_info["buyer"] = buyer_raw
+            # Location
+            item_loc = _clean_str(itm.get("Location")) or location_str
 
-        if u.get("remarks") or u.get("narration"):
-            other_info["remarks"] = u.get("remarks") or u.get("narration")
+            # Remark
+            remark_val = _clean_str(itm.get("Remark"))
+            if not remark_val:
+                m_rem = re.search(r"(\bBALE\s*\[\s*\d+\s*\}|\bBALE\s*\[\s*\d+\s*\])", prod_name, re.IGNORECASE)
+                if m_rem:
+                    remark_val = m_rem.group(1).strip()
 
-        if isinstance(buyer_raw, dict) and buyer_raw.get("gstin"):
-            other_info["buyer_gstin"] = buyer_raw["gstin"]
+            # Chapter Heading (HSN)
+            chap_heading = _clean_str(itm.get("Chapter Heading") or itm.get("hsn_code") or itm.get("hsn") or itm.get("Product_Details"))
+            if chap_heading:
+                m_hsn = re.search(r"\b(?:HSN\s*)?(\d{4,8})\b", chap_heading, re.IGNORECASE)
+                if m_hsn:
+                    chap_heading = m_hsn.group(1)
 
-        disc_val = _parse_float(u.get("discount") or u.get("trade_discount"))
-        if disc_val is not None:
-            other_info["discount"] = disc_val
+            p_entry = {
+                "SrNo": int(sr) if str(sr).isdigit() else sr,
+                "Product": prod_name,
+                "Qty": qty_val if qty_val is not None else 0.0,
+                "Rate": rate_val if rate_val is not None else 0.0,
+                "Value": amt_val if amt_val is not None else 0.0,
+                "Pcs": pcs_val if pcs_val is not None else 0,
+                "Quality": quality_val,
+                "Other Information": other_info_val,
+                "Location": item_loc,
+                "Remark": remark_val,
+                "Chapter Heading": chap_heading
+            }
+            products_list.append(p_entry)
 
-        bank_raw = u.get("bank_details") or {}
-        if isinstance(bank_raw, dict) and bank_raw:
-            other_info["bank_details"] = bank_raw
-
-        if u.get("terms_and_conditions"):
-            other_info["terms_and_conditions"] = u["terms_and_conditions"]
-
-        # 6. Location Address (Consignee / Shipped To / Delivery Site)
-        consignee_raw = u.get("consignee") or u.get("shipped_to") or u.get("delivery_address") or {}
-        location_obj = {}
-        if isinstance(consignee_raw, dict):
-            for k in ["name", "address", "gstin"]:
-                if consignee_raw.get(k):
-                    location_obj[k] = consignee_raw[k]
-        elif isinstance(consignee_raw, str):
-            location_obj["name"] = consignee_raw
-
-        # 7. TaxAmt / Tax / Taxable Amount
-        tax_obj = {}
-        taxable_val = _parse_float(u.get("taxable_value") or u.get("taxable_amount") or u.get("subtotal"))
-        cgst_val = _parse_float(u.get("cgst_amount") or u.get("cgst"))
-        sgst_val = _parse_float(u.get("sgst_amount") or u.get("sgst"))
-        igst_val = _parse_float(u.get("igst_amount") or u.get("igst"))
-        total_tax_val = _parse_float(u.get("total_gst") or u.get("total_tax"))
-
-        if cgst_val is not None:
-            tax_obj["cgst"] = cgst_val
-        if sgst_val is not None:
-            tax_obj["sgst"] = sgst_val
-        if igst_val is not None and igst_val > 0:
-            tax_obj["igst"] = igst_val
-        if total_tax_val is not None:
-            tax_obj["total_tax"] = total_tax_val
-        elif cgst_val is not None and sgst_val is not None:
-            tax_obj["total_tax"] = round(cgst_val + sgst_val + (igst_val or 0.0), 2)
-        if taxable_val is not None:
-            tax_obj["taxable_amount"] = taxable_val
-
-        # 8. Invoice Amount
-        inv_amt = _parse_float(
-            u.get("grand_total")
-            or u.get("total_payable_amount")
-            or u.get("invoice_amount")
-            or u.get("total_amount")
+        # Taxable Amount & Product Amount
+        tax_wrap = u.get("TaxAmt_Tax_Taxable_Amount") or {}
+        taxable_amt = _parse_float(
+            u.get("Taxable Amount")
+            or u.get("taxable_value")
+            or u.get("taxable_amount")
+            or tax_wrap.get("taxable_amount")
+            or tot_val
         )
+        prod_amt = _parse_float(u.get("Product Amount") or tot_val or taxable_amt)
+
+        # Taxes: cgst, sgst, total Tax
+        cgst_val = _parse_float(u.get("cgst") or u.get("cgst_amount") or tax_wrap.get("cgst"))
+        sgst_val = _parse_float(u.get("sgst") or u.get("sgst_amount") or tax_wrap.get("sgst"))
+        total_tax_val = _parse_float(u.get("total Tax") or u.get("total_tax") or u.get("total_gst") or tax_wrap.get("total_tax"))
+        if total_tax_val is None and cgst_val is not None and sgst_val is not None:
+            total_tax_val = round(cgst_val + sgst_val, 2)
 
         # Totals
-        printed_qty = _parse_float(u.get("total_quantity") or u.get("total_qty"))
-        printed_pcs = _parse_float(u.get("total_pieces") or u.get("total_pcs"))
-        
-        final_qty = printed_qty if printed_qty is not None else (round(tot_qty, 2) if tot_qty > 0 else None)
-        final_pcs = int(printed_pcs) if printed_pcs is not None else (tot_pcs if tot_pcs > 0 else None)
+        inv_amt = _parse_float(
+            u.get("Invoice Amount")
+            or u.get("Invoice_Amount")
+            or u.get("grand_total")
+            or u.get("total_payable_amount")
+        )
+        final_qty = _parse_float(u.get("Total Qty") or u.get("Total_Qty") or (tot_qty if tot_qty > 0 else None))
+        final_pcs = _parse_float(u.get("Total Pcs") or u.get("Total_Pcs") or (tot_pcs if tot_pcs > 0 else None))
 
-        # Assemble Polished JSON (Recurring Products Section First, followed by Main Section)
-        result = {}
-        if products:
-            result["Products"] = products
-        if supplier_obj:
-            result["Supplier"] = supplier_obj
-        if bill_date:
-            result["Bill_Date"] = str(bill_date)
-        if final_pcs is not None:
-            result["Total_Pcs"] = final_pcs
-        if final_qty is not None:
-            result["Total_Qty"] = final_qty
-        if inv_amt is not None:
-            result["Invoice_Amount"] = inv_amt
-        if location_obj:
-            result["Location_Address"] = location_obj
-        if bill_no:
-            result["GRN_No_Bill_No_Voucher_No"] = str(bill_no)
-        if tax_obj:
-            result["TaxAmt_Tax_Taxable_Amount"] = tax_obj
-        if other_info:
-            result["Other_Information_Remark_Narration_Description_TNC"] = other_info
+        # Narration & Terms
+        other_wrap = u.get("Other_Information_Remark_Narration_Description_TNC") or {}
+        narration_val = _clean_str(
+            u.get("Narration")
+            or u.get("narration")
+            or other_wrap.get("remarks")
+            or u.get("remarks")
+        )
+        terms_val = _clean_str(
+            u.get("Terms")
+            or u.get("terms")
+            or other_wrap.get("terms_and_conditions")
+            or u.get("terms_and_conditions")
+            or narration_val
+        )
 
-        return clean_dynamic_json(result)
+        purchase_book_data = {
+            "GRN No.": _clean_str(u.get("GRN No.") or u.get("grn_no") or ""),
+            "Voucher No": bill_no,
+            "Voucher Date  :": bill_date,
+            "Supplier": supplier_name,
+            "Bill No": bill_no,
+            "Bill Date  ": bill_date,
+            "Product Amount": prod_amt if prod_amt is not None else 0.0,
+            "Taxable Amount": taxable_amt if taxable_amt is not None else 0.0,
+            "Total Qty": final_qty if final_qty is not None else 0.0,
+            "Total Pcs": int(final_pcs) if final_pcs is not None else 0,
+            "total Tax": total_tax_val if total_tax_val is not None else 0.0,
+            "Invoice Amount": inv_amt if inv_amt is not None else 0.0,
+            "Narration": narration_val,
+            "Product Details": products_list,
+            "Terms": terms_val,
+            "cgst": cgst_val if cgst_val is not None else 0.0,
+            "sgst": sgst_val if sgst_val is not None else 0.0
+        }
+
+        return {"Purchase Books": purchase_book_data}
 
 polished_json_service = PolishedJSONService()
-

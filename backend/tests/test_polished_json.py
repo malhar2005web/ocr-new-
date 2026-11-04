@@ -1,101 +1,80 @@
 import pytest
 from app.services.polished_json_service import polished_json_service
 
-def test_polished_json_mapping_full_sample():
-    universal_sample = {
-        "invoice_number": "SA-992",
-        "invoice_date": "07/10/2026",
-        "supplier": {
-            "name": "SHREE NAKODA TEXTILES",
-            "address": "Bldg No-6, Kapadia Bldg, 1st Flr, Kalbadevi, Mumbai - 400002",
-            "gstin": "27AAJPJ2227M1ZJ",
-            "pan": "AAJPJ2227M"
-        },
-        "consignee": {
-            "name": "SHREE JEENMATA DYE & PTG MILLS PVT LTD",
-            "address": "PLOT NO.A-44, MIDC BADLAPUR, BADLAPUR 421503",
-            "gstin": "27AAHCS1877P1ZJ"
-        },
-        "buyer": {
-            "name": "M/s M TARUN AND CO.",
-            "gstin": "27AAHFM9152A1ZE"
-        },
-        "discount": "4587.22",
-        "line_items": [
+def test_polished_json_purchase_books_schema():
+    sample_input = {
+        "Products": [
             {
-                "sr_no": 1,
-                "product_name": "SAMLL SALLY GADWAL 2218",
-                "hsn_code": "520811",
-                "lot_no": "547",
-                "pieces": 48,
-                "quantity": 5201.30,
-                "unit": "MTR.",
-                "rate_per_unit": 29.40,
-                "amount": 152918.22
+                "SrNo": 1,
+                "Pcs_Qty": {
+                    "pcs": 115,
+                    "unit": "Mtr",
+                    "quantity": 10821
+                },
+                "Product": "Rudraksh 52*50-47 BALE[7} BALE NO 394 TO 400 PCS{115}",
+                "Product_Details": "HSN 5208",
+                "Value_Rate_Product_Amount": {
+                    "rate": 22.5,
+                    "amount": 243472.5
+                }
             }
         ],
-        "bank_details": {
-            "bank_name": "KOTAK MAHINDRA BANK",
-            "branch": "NEW MARIN LINES MUMBAI",
-            "account_number": "2413240134",
-            "ifsc": "KKBK0001350"
+        "Supplier": {
+            "pan": "AITPD0799E",
+            "name": "Mahaprabhuji Textiles",
+            "gstin": "27AITPD0799E1ZY",
+            "address": "S.No. 26, P.No.25/26/31/32, Dayne Shiwar, Malegaon"
         },
-        "taxable_value": 148331.00,
-        "cgst_amount": 3708.00,
-        "sgst_amount": 3708.00,
-        "igst_amount": 0.00,
-        "total_gst": 7416.00,
-        "grand_total": 155747.00
+        "Bill_Date": "14-Dec-21",
+        "Total_Pcs": 115,
+        "Total_Qty": 10821,
+        "Invoice_Amount": 255646,
+        "Location_Address": {
+            "name": "PAWAN PROCESS",
+            "address": "DYANE SHIWAR. MALEGAON, DIST. NASHIK, M.S."
+        },
+        "GRN_No_Bill_No_Voucher_No": "MT/1520",
+        "TaxAmt_Tax_Taxable_Amount": {
+            "cgst": 6086.81,
+            "sgst": 6086.81,
+            "total_tax": 12173.62,
+            "taxable_amount": 243472.5
+        },
+        "Other_Information_Remark_Narration_Description_TNC": {
+            "buyer": "M.Tarun & Co",
+            "remarks": "Interest @18% will be payable for the late payment from the due date.",
+            "buyer_gstin": "27AAHFM9152A1ZE"
+        }
     }
 
-    polished = polished_json_service.generate_polished_json(universal_sample)
+    res = polished_json_service.generate_polished_json(sample_input)
+    assert "Purchase Books" in res
+    pb = res["Purchase Books"]
 
-    # Assert Recurring Section (Products) is first, followed by Main Section
-    keys = list(polished.keys())
-    assert keys[0] == "Products"
-    assert keys[1] == "Supplier"
-    assert keys[2] == "Bill_Date"
+    assert pb["Bill No"] == "MT/1520"
+    assert pb["Voucher No"] == "MT/1520"
+    assert pb["Bill Date  "] == "14-Dec-21"
+    assert pb["Voucher Date  :"] == "14-Dec-21"
+    assert pb["Supplier"] == "Mahaprabhuji Textiles"
+    assert pb["Product Amount"] == 243472.5
+    assert pb["Taxable Amount"] == 243472.5
+    assert pb["Total Qty"] == 10821.0
+    assert pb["Total Pcs"] == 115
+    assert pb["total Tax"] == 12173.62
+    assert pb["Invoice Amount"] == 255646.0
 
-    assert polished["GRN_No_Bill_No_Voucher_No"] == "SA-992"
-    assert polished["Bill_Date"] == "07/10/2026"
-    assert polished["Supplier"]["name"] == "SHREE NAKODA TEXTILES"
-    assert polished["Supplier"]["gstin"] == "27AAJPJ2227M1ZJ"
-    
-    assert len(polished["Products"]) == 1
-    p = polished["Products"][0]
-    p_keys = list(p.keys())
-    assert p_keys[0] == "SrNo"
-    assert p_keys[1] == "Pcs_Qty"
-    assert p_keys[2] == "Product"
+    assert len(pb["Product Details"]) == 1
+    p = pb["Product Details"][0]
     assert p["SrNo"] == 1
-    assert p["Product"] == "SAMLL SALLY GADWAL 2218"
-    assert "HSN 520811" in p["Product_Details"]
-    assert "Lot No. 547" in p["Product_Details"]
-    assert p["Value_Rate_Product_Amount"]["rate"] == 29.40
-    assert p["Value_Rate_Product_Amount"]["amount"] == 152918.22
-    assert p["Pcs_Qty"]["pcs"] == 48
-    assert p["Pcs_Qty"]["quantity"] == 5201.30
-    assert p["Pcs_Qty"]["unit"] == "MTR."
+    assert "Rudraksh 52*50-47" in p["Product"]
+    assert p["Qty"] == 10821.0
+    assert p["Rate"] == 22.5
+    assert p["Value"] == 243472.5
+    assert p["Pcs"] == 115
+    assert "Rudraksh 52*50-47" in p["Quality"]
+    assert "BALE NO 394 TO 400" in p["Other Information"]
+    assert "PAWAN PROCESS" in p["Location"]
+    assert "5208" in p["Chapter Heading"]
 
-    # Location Address (Consignee mapping)
-    assert polished["Location_Address"]["name"] == "SHREE JEENMATA DYE & PTG MILLS PVT LTD"
-    assert polished["Location_Address"]["gstin"] == "27AAHCS1877P1ZJ"
-
-    # Other Information
-    other = polished["Other_Information_Remark_Narration_Description_TNC"]
-    assert other["discount"] == 4587.22
-    assert other["buyer"] == "M/s M TARUN AND CO."
-    assert other["buyer_gstin"] == "27AAHFM9152A1ZE"
-    assert other["bank_details"]["bank_name"] == "KOTAK MAHINDRA BANK"
-
-    # Taxes
-    assert polished["TaxAmt_Tax_Taxable_Amount"]["taxable_amount"] == 148331.00
-    assert polished["TaxAmt_Tax_Taxable_Amount"]["cgst"] == 3708.00
-    assert polished["TaxAmt_Tax_Taxable_Amount"]["sgst"] == 3708.00
-    assert polished["TaxAmt_Tax_Taxable_Amount"]["total_tax"] == 7416.00
-
-    # Invoice Amount & Totals
-    assert polished["Invoice_Amount"] == 155747.00
-    assert polished["Total_Qty"] == 5201.30
-    assert polished["Total_Pcs"] == 48
-
+    assert pb["cgst"] == 6086.81
+    assert pb["sgst"] == 6086.81
