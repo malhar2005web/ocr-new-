@@ -13,7 +13,7 @@ export default function DocumentDetailView({ documentId, onBack }) {
   const [loading, setLoading] = useState(true);
   const [reprocessing, setReprocessing] = useState(false);
   const [approving, setApproving] = useState(false);
-  const [activeTab, setActiveTab] = useState('structured'); // structured, json, raw, rag, validation
+  const [activeTab, setActiveTab] = useState('polished_json'); // polished_json, structured, json, raw, rag, validation
   const [copied, setCopied] = useState(false);
   const [copiedPolished, setCopiedPolished] = useState(false);
   const [copiedField, setCopiedField] = useState(null);
@@ -79,20 +79,6 @@ export default function DocumentDetailView({ documentId, onBack }) {
     ? doc.content.custom_fields 
     : (doc?.normalized_json || doc);
 
-  const formatSpacedJson = (obj) => {
-    if (!obj || typeof obj !== 'object' || Object.keys(obj).length === 0) return '{}';
-    const keys = Object.keys(obj);
-    const parts = keys.map((key) => {
-      const valStr = JSON.stringify(obj[key], null, 2);
-      const indented = valStr
-        .split('\n')
-        .map((line, idx) => (idx === 0 ? line : '  ' + line))
-        .join('\n');
-      return `  "${key}": ${indented}`;
-    });
-    return '{\n' + parts.join(',\n\n') + '\n}';
-  };
-
   const handleCopyJSON = async () => {
     if (!doc) return;
     const success = await copyTextToClipboard(JSON.stringify(displayJson, null, 2));
@@ -104,7 +90,7 @@ export default function DocumentDetailView({ documentId, onBack }) {
 
   const handleCopyPolishedJSON = async () => {
     if (!doc) return;
-    const success = await copyTextToClipboard(formatSpacedJson(doc?.polished_json || {}));
+    const success = await copyTextToClipboard(JSON.stringify(doc?.polished_json || {}, null, 2));
     if (success) {
       setCopiedPolished(true);
       setTimeout(() => setCopiedPolished(false), 2000);
@@ -113,10 +99,9 @@ export default function DocumentDetailView({ documentId, onBack }) {
 
   const handleDownloadJSON = () => {
     if (!doc) return;
-    const isPolished = activeTab === 'polished_json';
-    const jsonStr = isPolished ? formatSpacedJson(doc.polished_json || {}) : JSON.stringify(displayJson, null, 2);
-    const suffix = isPolished ? '_polished.json' : '_structured.json';
-    const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(jsonStr);
+    const jsonToDownload = activeTab === 'json' ? displayJson : (doc.polished_json || displayJson);
+    const suffix = activeTab === 'json' ? '_universal.json' : '_purchase_books.json';
+    const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(jsonToDownload, null, 2));
     const dlAnchor = document.createElement('a');
     dlAnchor.setAttribute('href', dataStr);
     dlAnchor.setAttribute('download', `${doc.source?.filename || 'document'}${suffix}`);
@@ -254,6 +239,12 @@ export default function DocumentDetailView({ documentId, onBack }) {
           {/* Tabs */}
           <div className="tab-list">
             <button 
+              className={`tab-btn ${activeTab === 'polished_json' ? 'active' : ''}`}
+              onClick={() => setActiveTab('polished_json')}
+            >
+              <Code size={15} style={{ verticalAlign: 'middle', marginRight: 6 }} /> Purchase Books (ERP)
+            </button>
+            <button 
               className={`tab-btn ${activeTab === 'structured' ? 'active' : ''}`}
               onClick={() => setActiveTab('structured')}
             >
@@ -264,12 +255,6 @@ export default function DocumentDetailView({ documentId, onBack }) {
               onClick={() => setActiveTab('json')}
             >
               <Code size={15} style={{ verticalAlign: 'middle', marginRight: 6 }} /> Universal JSON
-            </button>
-            <button 
-              className={`tab-btn ${activeTab === 'polished_json' ? 'active' : ''}`}
-              onClick={() => setActiveTab('polished_json')}
-            >
-              <Code size={15} style={{ verticalAlign: 'middle', marginRight: 6 }} /> Polished JSON
             </button>
             <button 
               className={`tab-btn ${activeTab === 'rag' ? 'active' : ''}`}
@@ -647,7 +632,7 @@ export default function DocumentDetailView({ documentId, onBack }) {
                 </button>
               </div>
               <div className="code-block" style={{ flex: 1, maxHeight: 580, overflowY: 'auto' }}>
-                {formatSpacedJson(doc?.polished_json || {})}
+                {JSON.stringify(doc?.polished_json || {}, null, 2)}
               </div>
             </div>
           )}

@@ -50,7 +50,8 @@ export default function ExplorerView({ onSelectDocument }) {
   };
 
   const handleExportJSON = (doc) => {
-    const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(doc.normalized_json || doc, null, 2));
+    const dataToExport = doc.polished_json || doc.normalized_json || doc;
+    const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(dataToExport, null, 2));
     const dlAnchor = document.createElement('a');
     dlAnchor.setAttribute('href', dataStr);
     dlAnchor.setAttribute('download', `${doc.filename || 'document'}_extracted.json`);
