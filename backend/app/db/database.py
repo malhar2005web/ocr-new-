@@ -48,6 +48,19 @@ class DatabaseManager:
                 schema_sql = schema_path.read_text(encoding="utf-8")
                 async with self.pool.acquire() as conn:
                     await conn.execute(schema_sql)
+                    # Ensure sr_no serial column exists on existing PostgreSQL tables
+                    await conn.execute("""
+                        DO $$ 
+                        BEGIN 
+                            IF NOT EXISTS (
+                                SELECT 1 FROM information_schema.columns 
+                                WHERE table_name = 'documents' AND column_name = 'sr_no'
+                            ) THEN 
+                                ALTER TABLE documents ADD COLUMN sr_no SERIAL;
+                                CREATE UNIQUE INDEX IF NOT EXISTS idx_documents_sr_no ON documents(sr_no);
+                            END IF; 
+                        END $$;
+                    """)
                 logger.info("PostgreSQL schema initialized successfully.")
             except Exception as e:
                 logger.error(f"Failed to execute schema.sql: {e}")
@@ -102,15 +115,21 @@ class DatabaseManager:
                 logger.error(f"PostgreSQL save_document failed: {e}. Fallback to memory.")
 
         # In-memory storage fallback
+        if "sr_no" not in doc_data:
+            doc_data["sr_no"] = len(self._fallback_store) + 1
         self._fallback_store[doc_id] = doc_data
         return doc_data
 
     async def get_document(self, doc_id: str) -> Optional[Dict[str, Any]]:
+        clean_id = str(doc_id).strip()
         if self.is_connected and self.pool:
-            query = "SELECT * FROM documents WHERE id = $1;"
             try:
                 async with self.pool.acquire() as conn:
-                    row = await conn.fetchrow(query, doc_id)
+                    row = None
+                    if clean_id.isdigit():
+                        row = await conn.fetchrow("SELECT * FROM documents WHERE sr_no = $1 LIMIT 1;", int(clean_id))
+                    if not row:
+                        row = await conn.fetchrow("SELECT * FROM documents WHERE id = $1 LIMIT 1;", clean_id)
                     if row:
                         d = dict(row)
                         if isinstance(d.get("normalized_json"), str):
@@ -121,7 +140,13 @@ class DatabaseManager:
             except Exception as e:
                 logger.error(f"PostgreSQL get_document failed: {e}")
 
-        return self._fallback_store.get(doc_id)
+        # In-memory fallback
+        if clean_id.isdigit():
+            target_sr = int(clean_id)
+            for d in self._fallback_store.values():
+                if d.get("sr_no") == target_sr:
+                    return d
+        return self._fallback_store.get(clean_id)
 
     async def list_documents(
         self,
@@ -185,6 +210,9 @@ class DatabaseManager:
 
         # In-memory fallback
         all_docs = list(self._fallback_store.values())
+        for idx, d in enumerate(all_docs, start=1):
+            if "sr_no" not in d or d["sr_no"] is None:
+                d["sr_no"] = idx
         if document_type:
             all_docs = [d for d in all_docs if d.get("document_type") == document_type]
         if filename:

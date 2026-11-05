@@ -18,6 +18,46 @@ from app.services.rag_service import rag_service
 from app.schemas.document import RAGQueryRequest
 
 router = APIRouter(prefix="/documents", tags=["Documents"])
+purchase_books_router = APIRouter(prefix="/purchase-books", tags=["Purchase Books ERP"])
+
+@purchase_books_router.get("/{identifier}", summary="Get Purchase Books ERP JSON by SR NO or ID")
+async def get_purchase_books_direct(identifier: str):
+    """
+    Primary Postman / ERP integration endpoint.
+    Accepts either an integer SR NO (e.g. 1, 2, 3) or Document UUID.
+    Returns solely the exact Purchase Books ERP JSON.
+    """
+    import json
+    doc = await db.get_document(identifier)
+    if not doc:
+        raise HTTPException(
+            status_code=404, 
+            detail=f"Document with SR NO or ID '{identifier}' not found."
+        )
+
+    norm = doc.get("normalized_json") or {}
+    if isinstance(norm, str):
+        try:
+            norm = json.loads(norm)
+        except Exception:
+            norm = {}
+
+    meta = doc.get("metadata_json") or {}
+    if isinstance(meta, str):
+        try:
+            meta = json.loads(meta)
+        except Exception:
+            meta = {}
+
+    raw_text = doc.get("raw_text", "")
+    polished = doc.get("polished_json") or meta.get("polished_json")
+    if (not polished or "Purchase Books" not in polished) and norm:
+        try:
+            polished = polished_json_service.generate_polished_json(norm, raw_text)
+        except Exception:
+            polished = {}
+
+    return polished or {"Purchase Books": {}}
 
 def build_frontend_response(doc_record: dict) -> dict:
     """
@@ -64,6 +104,7 @@ def build_frontend_response(doc_record: dict) -> dict:
 
     return {
         "id": doc_record["id"],
+        "sr_no": doc_record.get("sr_no"),
         "document_id": doc_record["id"],
         "filename": doc_record["filename"],
         "file_type": doc_record["file_type"],
@@ -212,6 +253,10 @@ async def get_document(doc_id: str):
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
     return build_frontend_response(doc)
+
+@router.get("/{doc_id}/purchase-books", summary="Get Purchase Books ERP JSON by SR NO or ID")
+async def get_document_purchase_books(doc_id: str):
+    return await get_purchase_books_direct(doc_id)
 
 @router.get("/{doc_id}/status")
 async def get_document_status(doc_id: str):

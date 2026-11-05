@@ -3,6 +3,7 @@
 
 CREATE TABLE IF NOT EXISTS documents (
     id VARCHAR(36) PRIMARY KEY,
+    sr_no SERIAL,
     filename VARCHAR(255) NOT NULL,
     file_type VARCHAR(50) NOT NULL,
     file_path VARCHAR(500) NOT NULL,
@@ -37,6 +38,7 @@ CREATE TABLE IF NOT EXISTS document_chunks (
 );
 
 -- Operational & Search Indexes
+CREATE INDEX IF NOT EXISTS idx_documents_sr_no ON documents(sr_no);
 CREATE INDEX IF NOT EXISTS idx_documents_status ON documents(status);
 CREATE INDEX IF NOT EXISTS idx_documents_doc_type ON documents(document_type);
 CREATE INDEX IF NOT EXISTS idx_documents_created_at ON documents(created_at DESC);

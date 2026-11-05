@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ExternalLink, Copy, Check, Terminal, Code2 } from 'lucide-react';
+import { Copy, Check, Terminal, Code2, Send, Zap } from 'lucide-react';
 import { copyTextToClipboard } from '../services/clipboard';
 
 export default function ApiDocsView() {
@@ -13,160 +13,164 @@ export default function ApiDocsView() {
     }
   };
 
-  const endpoints = [
-    {
-      key: 'upload',
-      method: 'POST',
-      path: '/api/v1/documents/extract',
-      desc: 'Uploads a document (PDF, PNG, JPG), runs OCR/LLM extraction, validates structure, and persists normalized JSON in PostgreSQL.',
-      curl: `curl -X POST "http://localhost:8000/api/v1/documents/extract" \\
-  -F "file=@/path/to/invoice_or_contract.pdf" \\
-  -F "async_mode=false"`,
-      response: `{
-  "document_id": "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d",
-  "status": "completed",
-  "message": "Document processed and extracted successfully."
-}`
-    },
-    {
-      key: 'get_json',
-      method: 'GET',
-      path: '/api/v1/documents/{document_id}',
-      desc: 'Retrieves the complete normalized Universal JSON for any extracted document.',
-      curl: `curl -X GET "http://localhost:8000/api/v1/documents/9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d"`,
-      response: `{
-  "document_id": "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d",
-  "schema_version": "1.0",
-  "document_type": "tax_invoice",
-  "source": { "filename": "sample_invoice.pdf", "file_type": "pdf", "page_count": 1 },
-  "metadata": { "title": "Tax Invoice", "dates": ["18/09/2026"], "names": ["SAI SIYA INFRA", "Ananya Infrastructure"] },
-  "content": {
-    "tables": [...],
-    "key_value_pairs": [...],
-    "custom_fields": { "supplier_gstin": "27ANKPC6900E2ZA", "grand_total": 29205.00 }
-  },
-  "validation": { "status": "valid", "issues": [] }
-}`
-    },
-    {
-      key: 'list',
-      method: 'GET',
-      path: '/api/v1/documents?documentType=tax_invoice&status=completed&page=1&limit=20',
-      desc: 'Search, paginate, and filter documents by type, filename, date ranges, or nested JSONB fields.',
-      curl: `curl -X GET "http://localhost:8000/api/v1/documents?documentType=tax_invoice&status=completed&limit=10"`,
-      response: `{
-  "total": 42,
-  "page": 1,
-  "limit": 10,
-  "documents": [...]
-}`
-    },
-    {
-      key: 'rag',
-      method: 'POST',
-      path: '/api/v1/documents/{document_id}/query',
-      desc: 'Ask natural-language questions about document content with cited source pages and relevant excerpts.',
-      curl: `curl -X POST "http://localhost:8000/api/v1/documents/9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d/query" \\
-  -H "Content-Type: application/json" \\
-  -d '{"query": "What are the payment terms and due date?"}'`,
-      response: `{
-  "query": "What are the payment terms and due date?",
-  "answer": "Payment is due within 30 days of receipt as stated on Page 2.",
-  "citations": [
-    { "page": 2, "content": "All invoices shall be paid within 30 days of receipt...", "score": 6.38 }
-  ]
-}`
-    },
-    {
-      key: 'health',
-      method: 'GET',
-      path: '/api/v1/health',
-      desc: 'Inspect backend connectivity, database status, Tesseract OCR availability, and active LLM model.',
-      curl: `curl -X GET "http://localhost:8000/api/v1/health"`,
-      response: `{
-  "status": "healthy",
-  "service": "Universal Document Intelligence Platform",
-  "database": { "connected": true, "type": "PostgreSQL" },
-  "ocr_engine": { "name": "Tesseract OCR", "available": true },
-  "llm_provider": { "provider": "open_weight", "model": "qwen-2.5-72b-instruct" }
-}`
-    }
-  ];
+  const postmanUrl = `${window.location.origin}/api/v1/purchase-books/1`;
+  const curlExample = `curl -X GET "${window.location.origin}/api/v1/purchase-books/1"`;
+  const sampleResponse = `{
+  "Purchase Books": {
+    "GRN No.": "",
+    "Voucher No": "SA-992",
+    "Voucher Date  :": "07/10/2026",
+    "Supplier": "SHREE NAKODA TEXTILES",
+    "Bill No": "SA-992",
+    "Bill Date  ": "07/10/2026",
+    "Product Amount": 152918.22,
+    "Taxable Amount": 148331.0,
+    "Total Qty": 5201.3,
+    "Total Pcs": 48,
+    "total Tax": 7416.0,
+    "Invoice Amount": 155747.0,
+    "Narration": "Payment within 20 Days",
+    "Product Details": [
+      {
+        "SrNo": 1,
+        "Product": "SAMLL SALLY GADWAL 2218 -",
+        "Qty": 5201.3,
+        "Rate": 29.4,
+        "Value": 152918.22,
+        "Pcs": 48,
+        "Quality": "SAMLL SALLY GADWAL 2218 -",
+        "Other Information": "547",
+        "Location": "PLOT NO.A-44, MIDC BADLAPUR, DIST.THANE, BADLAPUR 421503",
+        "Remark": "",
+        "Chapter Heading": "520811"
+      }
+    ],
+    "Terms": "1. We are not responsible for loss or damage in transit. 2. Payment must be done by PAYEE A/C. Draft by registered post. 3. Interest @ 24% per annum after due date.",
+    "cgst": 3708.0,
+    "sgst": 3708.0
+  }
+}`;
 
   return (
-    <div className="animate-fade-in" style={{ maxWidth: 1000, margin: '0 auto' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 28 }}>
-        <div>
-          <h1 className="page-title">REST API Reference & Integration</h1>
-          <p className="page-desc">
-            Universal document extraction, search, raw text, and RAG retrieval endpoints.
-          </p>
-        </div>
-        <a 
-          href="http://localhost:8000/docs" 
-          target="_blank" 
-          rel="noopener noreferrer" 
-          className="btn btn-primary"
-        >
-          Open Swagger UI <ExternalLink size={15} />
-        </a>
+    <div className="animate-fade-in" style={{ maxWidth: 950, margin: '0 auto' }}>
+      <div style={{ marginBottom: 28 }}>
+        <h1 className="page-title">Purchase Books ERP API</h1>
+        <p className="page-desc">
+          Single dedicated GET API to retrieve exact Purchase Books JSON directly into Postman or ERP systems.
+        </p>
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-        {endpoints.map((ep) => (
-          <div key={ep.key} className="card">
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-              <span 
-                style={{ 
-                  padding: '4px 10px', 
-                  borderRadius: 6, 
-                  fontWeight: 700, 
-                  fontSize: '0.82rem',
-                  background: ep.method === 'POST' ? 'rgba(99, 102, 241, 0.2)' : 'rgba(16, 185, 129, 0.2)',
-                  color: ep.method === 'POST' ? 'var(--primary)' : 'var(--success)'
-                }}
-              >
-                {ep.method}
-              </span>
-              <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, fontSize: '0.98rem' }}>
-                {ep.path}
-              </span>
-            </div>
-
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: 16 }}>
-              {ep.desc}
-            </p>
-
-            {/* cURL Example */}
-            <div style={{ marginBottom: 14 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                <span style={{ fontSize: '0.78rem', color: 'var(--text-dim)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <Terminal size={13} /> Example Request (cURL)
-                </span>
-                <button 
-                  className="btn btn-secondary" 
-                  style={{ padding: '4px 8px', fontSize: '0.75rem' }}
-                  onClick={() => copyCode(ep.key + '_curl', ep.curl)}
-                >
-                  {copiedKey === ep.key + '_curl' ? <Check size={12} color="var(--success)" /> : <Copy size={12} />} Copy
-                </button>
-              </div>
-              <div className="code-block" style={{ fontSize: '0.8rem' }}>
-                {ep.curl}
-              </div>
-            </div>
-
-            {/* Response Example */}
-            <div>
-              <div style={{ fontSize: '0.78rem', color: 'var(--text-dim)', fontWeight: 600, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
-                <Code2 size={13} /> Sample JSON Response
-              </div>
-              <div className="code-block" style={{ fontSize: '0.78rem', maxHeight: 180, overflowY: 'auto' }}>
-                {ep.response}
-              </div>
-            </div>
+      {/* Main Single API Card */}
+      <div className="card" style={{ border: '1px solid var(--tiffany-border)', boxShadow: '0 4px 20px rgba(78, 205, 196, 0.08)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span 
+              style={{ 
+                padding: '6px 14px', 
+                borderRadius: 6, 
+                fontWeight: 700, 
+                fontSize: '0.88rem',
+                background: 'rgba(16, 185, 129, 0.2)',
+                color: 'var(--success)',
+                fontFamily: 'var(--font-mono)'
+              }}
+            >
+              GET
+            </span>
+            <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: '1.05rem', color: 'var(--text-main)' }}>
+              /api/v1/purchase-books/{'{id}'}
+            </span>
           </div>
-        ))}
+          <span style={{ fontSize: '0.8rem', padding: '4px 10px', borderRadius: 20, background: 'var(--tiffany-tint)', color: 'var(--tiffany-deep)', fontWeight: 600 }}>
+            Postman Ready
+          </span>
+        </div>
+
+        <p style={{ color: 'var(--text-muted)', fontSize: '0.92rem', marginBottom: 20, lineHeight: 1.6 }}>
+          Pass the document's <strong>SR NO</strong> (e.g. <code>1</code>, <code>2</code>, <code>3</code>) from the Dashboard / Explorer table, or the unique Document UUID. Returns the exact <strong>Purchase Books</strong> ERP JSON directly with zero wrappers or extraneous fields.
+        </p>
+
+        {/* Postman URL Quick Copy */}
+        <div style={{ marginBottom: 20, padding: 16, background: 'var(--bg-subtle)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Send size={14} color="var(--primary)" /> Postman Request URL
+            </span>
+            <button 
+              className="btn btn-secondary" 
+              style={{ padding: '4px 10px', fontSize: '0.78rem' }}
+              onClick={() => copyCode('postman', postmanUrl)}
+            >
+              {copiedKey === 'postman' ? <Check size={13} color="var(--success)" /> : <Copy size={13} />} Copy URL
+            </button>
+          </div>
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.88rem', color: 'var(--primary)', wordBreak: 'break-all' }}>
+            {postmanUrl}
+          </div>
+        </div>
+
+        {/* Parameters Section */}
+        <div style={{ marginBottom: 22 }}>
+          <h3 style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: 10 }}>
+            Path Parameters
+          </h3>
+          <table className="data-table" style={{ width: '100%', fontSize: '0.85rem' }}>
+            <thead>
+              <tr>
+                <th style={{ width: 140 }}>Parameter</th>
+                <th style={{ width: 100 }}>Type</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>id</code></td>
+                <td><span style={{ color: 'var(--text-dim)' }}>Integer / UUID</span></td>
+                <td>
+                  The <strong>SR NO</strong> (e.g., <code>1</code>, <code>2</code>) displayed to the left of the Filename in the table, or the Document UUID.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        {/* cURL Example */}
+        <div style={{ marginBottom: 22 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+            <span style={{ fontSize: '0.8rem', color: 'var(--text-dim)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Terminal size={14} /> Example cURL Command
+            </span>
+            <button 
+              className="btn btn-secondary" 
+              style={{ padding: '4px 8px', fontSize: '0.75rem' }}
+              onClick={() => copyCode('curl', curlExample)}
+            >
+              {copiedKey === 'curl' ? <Check size={12} color="var(--success)" /> : <Copy size={12} />} Copy cURL
+            </button>
+          </div>
+          <div className="code-block" style={{ fontSize: '0.82rem' }}>
+            {curlExample}
+          </div>
+        </div>
+
+        {/* Sample Response */}
+        <div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+            <span style={{ fontSize: '0.8rem', color: 'var(--text-dim)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Code2 size={14} /> Result in Postman (Direct Purchase Books ERP JSON)
+            </span>
+            <button 
+              className="btn btn-secondary" 
+              style={{ padding: '4px 8px', fontSize: '0.75rem' }}
+              onClick={() => copyCode('resp', sampleResponse)}
+            >
+              {copiedKey === 'resp' ? <Check size={12} color="var(--success)" /> : <Copy size={12} />} Copy Sample JSON
+            </button>
+          </div>
+          <div className="code-block" style={{ fontSize: '0.8rem', maxHeight: 320, overflowY: 'auto' }}>
+            {sampleResponse}
+          </div>
+        </div>
       </div>
     </div>
   );

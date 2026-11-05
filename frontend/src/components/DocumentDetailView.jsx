@@ -209,6 +209,11 @@ export default function DocumentDetailView({ documentId, onBack }) {
         <div className="card" style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: 0, overflow: 'hidden' }}>
           <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--border-subtle)', background: 'rgba(15, 23, 42, 0.6)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div style={{ fontWeight: 600, fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: 8 }}>
+              {doc?.sr_no && (
+                <span style={{ padding: '2px 8px', borderRadius: 4, background: 'var(--tiffany-tint)', color: 'var(--tiffany-deep)', fontWeight: 700, fontSize: '0.78rem', fontFamily: 'var(--font-mono)' }}>
+                  SR #{doc.sr_no}
+                </span>
+              )}
               <FileText size={16} color="var(--primary)" />
               {source?.filename}
             </div>

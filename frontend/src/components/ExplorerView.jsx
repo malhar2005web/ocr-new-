@@ -160,6 +160,7 @@ export default function ExplorerView({ onSelectDocument }) {
             <table className="data-table">
               <thead>
                 <tr>
+                  <th style={{ width: 85 }}>SR NO</th>
                   <th>Filename</th>
                   <th>Document Type</th>
                   <th>Status</th>
@@ -169,8 +170,11 @@ export default function ExplorerView({ onSelectDocument }) {
                 </tr>
               </thead>
               <tbody>
-                {documents.map((doc) => (
+                {documents.map((doc, idx) => (
                   <tr key={doc.id}>
+                    <td style={{ fontWeight: 700, color: 'var(--primary)', fontFamily: 'var(--font-mono)' }}>
+                      #{doc.sr_no || ((page - 1) * limit + idx + 1)}
+                    </td>
                     <td style={{ fontWeight: 600 }}>{doc.filename}</td>
                     <td>
                       <span style={{ textTransform: 'capitalize', color: 'var(--text-muted)' }}>
