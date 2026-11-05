@@ -105,11 +105,8 @@ class PolishedJSONService:
 
         user_content += "Produce the Purchase Books JSON strictly following the target schema."
 
-        models_to_try = [settings.LLM_MODEL, "gemini-3.5-flash-lite", "gemini-3.8-flash"]
-        seen_models = []
-        for m in models_to_try:
-            if m not in seen_models:
-                seen_models.append(m)
+        models_to_try = [settings.LLM_MODEL]
+        seen_models = [settings.LLM_MODEL]
 
         for model_name in seen_models:
             try:

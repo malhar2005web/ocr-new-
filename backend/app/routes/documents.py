@@ -53,7 +53,11 @@ async def get_purchase_books_direct(identifier: str):
     polished = doc.get("polished_json") or meta.get("polished_json")
     if (not polished or "Purchase Books" not in polished) and norm:
         try:
-            polished = polished_json_service.generate_polished_json(norm, raw_text)
+            polished = await asyncio.to_thread(polished_json_service.generate_polished_json, norm, raw_text)
+            if polished and "Purchase Books" in polished:
+                meta["polished_json"] = polished
+                doc["metadata_json"] = meta
+                asyncio.create_task(db.save_document(doc))
         except Exception:
             polished = {}
 
