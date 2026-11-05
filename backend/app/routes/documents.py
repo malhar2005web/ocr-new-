@@ -19,6 +19,31 @@ from app.schemas.document import RAGQueryRequest
 
 router = APIRouter(prefix="/documents", tags=["Documents"])
 purchase_books_router = APIRouter(prefix="/purchase-books", tags=["Purchase Books ERP"])
+universal_router = APIRouter(prefix="/universal", tags=["Universal JSON"])
+
+@universal_router.get("/{identifier}", summary="Get Universal JSON by SR NO or ID")
+async def get_universal_direct(identifier: str):
+    """
+    Direct Postman / Integration endpoint for Universal JSON.
+    Accepts either an integer SR NO (e.g. 76, 77) or Document UUID.
+    Returns solely the exact Universal normalized JSON.
+    """
+    import json
+    doc = await db.get_document(identifier)
+    if not doc:
+        raise HTTPException(
+            status_code=404, 
+            detail=f"Document with SR NO or ID '{identifier}' not found."
+        )
+
+    norm = doc.get("normalized_json") or {}
+    if isinstance(norm, str):
+        try:
+            norm = json.loads(norm)
+        except Exception:
+            norm = {}
+
+    return norm or {}
 
 @purchase_books_router.get("/{identifier}", summary="Get Purchase Books ERP JSON by SR NO or ID")
 async def get_purchase_books_direct(identifier: str):
@@ -261,6 +286,10 @@ async def get_document(doc_id: str):
 @router.get("/{doc_id}/purchase-books", summary="Get Purchase Books ERP JSON by SR NO or ID")
 async def get_document_purchase_books(doc_id: str):
     return await get_purchase_books_direct(doc_id)
+
+@router.get("/{doc_id}/universal", summary="Get Universal JSON by SR NO or ID")
+async def get_document_universal(doc_id: str):
+    return await get_universal_direct(doc_id)
 
 @router.get("/{doc_id}/status")
 async def get_document_status(doc_id: str):

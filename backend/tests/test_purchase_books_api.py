@@ -55,3 +55,20 @@ async def test_purchase_books_api_by_sr_no_and_id():
     # 4. Test 404 for non-existent document
     res_404 = client.get("/api/v1/purchase-books/999999999")
     assert res_404.status_code == 404
+
+    # 5. Test Universal JSON GET by SR NO: /api/v1/universal/999
+    res_u_sr = client.get("/api/v1/universal/999")
+    assert res_u_sr.status_code == 200
+    data_u = res_u_sr.json()
+    assert data_u.get("invoice_number") == "MT/1520"
+    assert data_u.get("supplier", {}).get("name") == "Mahaprabhuji Textiles"
+
+    # 6. Test Universal JSON GET by UUID: /api/v1/universal/test-uuid-pb-999
+    res_u_uuid = client.get("/api/v1/universal/test-uuid-pb-999")
+    assert res_u_uuid.status_code == 200
+    assert res_u_uuid.json().get("invoice_number") == "MT/1520"
+
+    # 7. Test Universal 404
+    res_u_404 = client.get("/api/v1/universal/999999999")
+    assert res_u_404.status_code == 404
+

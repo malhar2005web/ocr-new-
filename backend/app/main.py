@@ -5,7 +5,7 @@ from app.core.config import settings
 from app.core.logging import logger
 from app.db.database import db
 from app.routes.health import router as health_router
-from app.routes.documents import router as documents_router, purchase_books_router
+from app.routes.documents import router as documents_router, purchase_books_router, universal_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -33,6 +33,7 @@ app.add_middleware(
 
 # Include API v1 Routers
 app.include_router(purchase_books_router, prefix="/api/v1")
+app.include_router(universal_router, prefix="/api/v1")
 app.include_router(health_router, prefix="/api/v1")
 app.include_router(documents_router, prefix="/api/v1")
 
